@@ -55,41 +55,39 @@ func (s *Scanner) Advance(n int) {
 	}
 }
 
-func (s *Scanner) subParse(parser Parser, args []interface{}) (*Scanner, interface{}, bool) {
+func (s *Scanner) subParse(parser Parser, args []interface{}) (*Scanner, interface{}, *ParseFailure) {
 	sub := s.Copy()
 	sub.Args = args
 	result := parser(sub)
 	if f, ok := result.(*ParseFailure); ok {
 		s.Tracef("! %+v", f)
-		s.Result = f
-		s.LastFailure = f
-		return sub, nil, false
+		return sub, result, f
 	}
 	s.Tracef("+ %T %#v", result, result)
-	return sub, result, true
+	return sub, result, nil
 }
 
 func (s *Scanner) Parse(parser Parser, args ...interface{}) bool {
-	sub, result, match := s.subParse(parser, args)
-	if match {
-		s.Result = result
-		s.LastFailure = nil
+	sub, result, failure := s.subParse(parser, args)
+	s.Result = result
+	s.LastFailure = failure
+	if failure == nil {
 		s.Loc = sub.Loc
 	}
-	return match
+	return failure == nil
 }
 
 func (s *Scanner) Peek(parser Parser, args ...interface{}) bool {
-	_, _, match := s.subParse(parser, args)
-	return match
+	_, _, failure := s.subParse(parser, args)
+	return failure == nil
 }
 
 func (s *Scanner) Skip(parser Parser, args ...interface{}) bool {
-	sub, _, match := s.subParse(parser, args)
-	if match {
+	sub, _, failure := s.subParse(parser, args)
+	if failure == nil {
 		s.Loc = sub.Loc
 	}
-	return match
+	return failure == nil
 }
 
 func (s *Scanner) Fail(msg string) *ParseFailure {
